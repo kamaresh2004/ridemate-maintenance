@@ -1,0 +1,9 @@
+# Static staff console: nothing generated should be committed.
+*.log
+server.err
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+node_modules/

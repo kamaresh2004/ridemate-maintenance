@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#16123a" />
+  <meta name="description" content="RideMate captain maintenance: review identity documents and vehicle KYC." />
+  <title>RideMate · Captain Maintenance (staff console)</title>
+  <link rel="stylesheet" href="css/app.css?v=20261118" />
+  <script>
+    /* Opened straight from disk (file://) the browser blocks ES modules, so the
+       console looks blank. Send the reviewer to the local console server. */
+    if (location.protocol === 'file:') {
+      location.replace('http://localhost:5600/');
+    }
+  </script>
+</head>
+<body>
+  <!-- Login / staff gate ------------------------------------------------ -->
+  <main id="authView" class="auth" hidden>
+    <section class="auth__panel">
+      <div class="auth__brand">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+               stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5.2 11.2 6.7 6.8A2 2 0 0 1 8.6 5.4h6.8a2 2 0 0 1 1.9 1.4l1.5 4.4"/>
+            <path d="M3.6 11.4h16.8v4.4h-1.9a2 2 0 0 1-4 0H9.5a2 2 0 0 1-4 0H3.6z"/>
+            <circle cx="7.4" cy="15.9" r=".9"/><circle cx="16.6" cy="15.9" r=".9"/>
+          </svg>
+        </span>
+        <span class="brand__name">ride<em>mate</em></span>
+        <span class="brand__tag">Maintenance</span>
+      </div>
+
+      <div class="auth__head">
+        <h1>Trust &amp; Safety console</h1>
+        <p>Review captain identity documents and vehicle papers. Decisions are recorded
+           against your staff account in the RideMate audit log.</p>
+      </div>
+
+      <form id="loginForm" class="auth__form" novalidate autocomplete="on">
+        <div class="field">
+          <label for="loginEmail">Staff email</label>
+          <input class="input" id="loginEmail" name="email" type="email" autocomplete="username"
+                 required placeholder="admin@ridemate.app" />
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input class="input" id="loginPassword" name="password" type="password"
+                 autocomplete="current-password" required placeholder="••••••••" />
+        </div>
+        <p class="form-error" id="loginError" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block" type="submit" id="loginBtn">Sign in to review</button>
+      </form>
+
+      <details class="auth__server">
+        <summary>Backend connection</summary>
+        <div class="field">
+          <label for="apiBaseInput">RideMate API base URL</label>
+          <input class="input" id="apiBaseInput" name="apiBase" type="url" spellcheck="false"
+                 placeholder="http://localhost:5000" />
+          <p class="field__hint">Use <code>http://localhost:5000</code> for local development or your
+             deployed API origin. The origin must be listed in the backend's
+             <code>FRONTEND_ORIGINS</code>.</p>
+        </div>
+        <p class="text-faint text-xs" id="apiBaseHint"></p>
+      </details>
+
+      <p class="auth__note">
+        Only accounts with the <b>admin</b> or <b>support</b> role can open this console.
+        Captains cannot approve themselves, and a denial requires a reason.
+      </p>
+    </section>
+
+    <aside class="auth__aside" aria-hidden="true">
+      <div class="auth__glow"></div>
+      <div class="auth__quote">
+        <div class="eyebrow">Manual review, never self-approval</div>
+        <h2>Every captain is<br /><em>a person, checked.</em></h2>
+        <ul class="auth__points">
+          <li><span>01</span> Identity document read by a reviewer</li>
+          <li><span>02</span> Licence + insurance packet reviewed per vehicle</li>
+          <li><span>03</span> Registration certificate checked separately</li>
+          <li><span>04</span> Every decision carries an audit trail</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Signed-in shell --------------------------------------------------- -->
+  <div id="appView" class="shell" hidden>
+    <aside class="sidebar">
+      <a class="sidebar__brand" href="#/overview">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+               stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5.2 11.2 6.7 6.8A2 2 0 0 1 8.6 5.4h6.8a2 2 0 0 1 1.9 1.4l1.5 4.4"/>
+            <path d="M3.6 11.4h16.8v4.4h-1.9a2 2 0 0 1-4 0H9.5a2 2 0 0 1-4 0H3.6z"/>
+            <circle cx="7.4" cy="15.9" r=".9"/><circle cx="16.6" cy="15.9" r=".9"/>
+          </svg>
+        </span>
+        <span class="sidebar__brandtext">ride<em>mate</em><small>maintenance</small></span>
+      </a>
+
+      <nav class="nav" id="sideNav" aria-label="Maintenance sections">
+        <a class="nav__item" data-route="overview" href="#/overview">
+          <span class="nav__ic" data-icon="grid"></span><span>Overview</span>
+        </a>
+        <a class="nav__item" data-route="identity" href="#/identity">
+          <span class="nav__ic" data-icon="id"></span><span>Identity KYC</span>
+          <span class="nav__count" id="countIdentity" hidden>0</span>
+        </a>
+        <a class="nav__item" data-route="vehicles" href="#/vehicles">
+          <span class="nav__ic" data-icon="car"></span><span>Vehicle KYC</span>
+          <span class="nav__count" id="countVehicles" hidden>0</span>
+        </a>
+        <a class="nav__item" data-route="rc" href="#/rc">
+          <span class="nav__ic" data-icon="file"></span><span>RC review</span>
+          <span class="nav__count" id="countRc" hidden>0</span>
+        </a>
+        <a class="nav__item" data-route="users" href="#/users">
+          <span class="nav__ic" data-icon="users"></span><span>People</span>
+        </a>
+        <a class="nav__item" data-route="audit" href="#/audit">
+          <span class="nav__ic" data-icon="history"></span><span>Audit log</span>
+        </a>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="env-chip" id="envChip" title="Connected API">—</div>
+        <div class="sidebar__user">
+          <span class="avatar avatar--sm" id="sideAvatar">?</span>
+          <span class="sidebar__usertext">
+            <b id="sideName">—</b>
+            <small id="sideRole">—</small>
+          </span>
+          <button class="iconbtn" id="logoutBtn" title="Sign out" aria-label="Sign out" data-icon="logout"></button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar__title">
+          <div class="eyebrow" id="pageEyebrow">Trust &amp; Safety</div>
+          <h1 id="pageTitle">Overview</h1>
+        </div>
+        <div class="topbar__actions">
+          <span class="env-chip" id="consoleChip" title="Staff console on port 5600 — this is not the RideMate rider/captain app on port 5000">staff console · :5600</span>
+          <span class="live-dot" id="liveBadge"><i></i> live data</span>
+          <button class="btn btn--ghost btn--sm" id="refreshBtn" data-icon="refresh">
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <main class="main" id="main" tabindex="-1">
+        <div class="page-loading"><span class="spinner"></span> Loading…</div>
+      </main>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js?v=20261118"></script>
+</body>
+</html>
