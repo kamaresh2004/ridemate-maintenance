@@ -11,6 +11,10 @@
 const API_STORE_KEY = 'rm_maint_api';
 const AUTH_MARKER = 'rm_maint_authed';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+/* This console is deployed as a Render static site, which cannot run Flask or
+   reach MongoDB. Production must call the backend web service instead of the
+   page's own origin; localhost still talks to the local API. */
+const DEPLOYED_API_BASE = 'https://ridemate-k2hu.onrender.com';
 
 export class ApiError extends Error {
   constructor(message, status = 0, code = 'error', details = null) {
@@ -26,9 +30,8 @@ function defaultApiBase() {
   // Opening index.html straight from disk (file://) has no usable origin.
   if (window.location.protocol === 'file:') return 'http://localhost:5000';
   if (LOCAL_HOSTS.has(window.location.hostname)) return 'http://localhost:5000';
-  // Served from the same origin as the API (reverse proxy / Flask static) is the
-  // safest production default. The login screen can override it.
-  return window.location.origin;
+  // A static site has no API routes of its own, so use the live Render backend.
+  return DEPLOYED_API_BASE;
 }
 
 export function getApiBase() {
