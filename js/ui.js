@@ -255,7 +255,14 @@ export async function viewDocument(path, label = 'Document') {
     });
     observer.observe(document.body, { childList: true });
   } catch (err) {
-    el.querySelector('.modal__body').innerHTML =
-      `<div class="note">${icon('alert', 14)} ${esc(err.message)}</div>`;
+    // 404 here means the metadata says a file exists but the bytes are gone --
+    // documents uploaded before durable storage was on were erased by a
+    // redeploy. Say that, and say what fixes it, instead of "File not found."
+    const lost = err && (err.status === 404 || err.code === 'not_found');
+    el.querySelector('.modal__body').innerHTML = lost
+      ? `<div class="note">${icon('alert', 14)} This file is no longer stored on the server, so there is nothing to show.
+          Documents uploaded before durable storage was enabled were erased when the app redeployed.
+          Ask the captain to upload it again from <b>My vehicles</b> — once re-uploaded it opens here normally.</div>`
+      : `<div class="note">${icon('alert', 14)} ${esc(err.message)}</div>`;
   }
 }
