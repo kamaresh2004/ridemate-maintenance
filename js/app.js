@@ -611,6 +611,19 @@ function vehicleCard(item) {
   </article>`;
 }
 
+/* The API answers with field keys ("insurance_document"); a reviewer reading a
+   toast should see the thing they have to ask the captain for. */
+const MISSING_LABELS = {
+  dl_number: 'driving licence number',
+  dl_document: 'licence photo',
+  insurance_number: 'insurance policy number',
+  insurance_document: 'insurance photo',
+};
+
+function missingLabel(key) {
+  return MISSING_LABELS[key] || String(key).replace(/_/g, ' ');
+}
+
 function vehicleDraftCard(item) {
   const docs = item.documents || {};
   const missing = item.missing || [];
@@ -721,7 +734,7 @@ function editVehicleModal(item, reload) {
         submitted = submitted || last.submitted;
       }
       close();
-      const missing = last.missing || [];
+      const missing = (last.missing || []).map(missingLabel);
       if (submitted) {
         toast('Packet complete — moved to the review queue above.', 'success', 6000);
       } else if (missing.length) {
