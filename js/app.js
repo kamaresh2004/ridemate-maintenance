@@ -496,24 +496,48 @@ async function renderVehicles(root) {
       </p>
       <button class="btn btn--ghost btn--sm" id="vReload" data-icon="refresh">Reload</button>
     </div>
-    <div class="queue" id="vQueue">${skeletonCards(3)}</div>`;
+    <div class="queue" id="vQueue">${skeletonCards(3)}</div>
+    <div id="vDrafts"></div>`;
   const queue = root.querySelector('#vQueue');
+  const drafts = root.querySelector('#vDrafts');
 
   const load = async () => {
     queue.innerHTML = skeletonCards(3);
+    drafts.innerHTML = '';
     try {
-      const data = await Api.vehicleQueue();
-      const rows = data.data || [];
+      // Drafts are a separate read-only list. Without them a captain who
+      // uploaded one paper and stopped is completely invisible: the ready
+      // queue only carries complete packets, which looks to the captain like
+      // their vehicle never reached the console at all.
+      const [ready, progress] = await Promise.all([
+        Api.vehicleQueue(),
+        Api.vehicleProgress().catch(() => ({ data: [] })),
+      ]);
+      const rows = ready.data || [];
       if (!rows.length) {
         queue.innerHTML = emptyState({
           title: 'No vehicle packets waiting',
           desc: 'Licence and insurance submissions appear here after a captain submits a vehicle.',
           ic: 'car',
         });
-        return;
+      } else {
+        queue.innerHTML = rows.map(vehicleCard).join('');
+        wireVehicleActions(queue, load);
       }
-      queue.innerHTML = rows.map(vehicleCard).join('');
-      wireVehicleActions(queue, load);
+
+      const readyIds = new Set(rows.map((row) => row.id));
+      const draftRows = (progress.data || []).filter((row) => !readyIds.has(row.id));
+      if (draftRows.length) {
+        drafts.innerHTML = `
+          <div class="section-head">
+            <div>
+              <h2>In progress</h2>
+              <p>Papers uploaded, packet not complete. Nothing to approve yet — the captain is still adding documents.</p>
+            </div>
+          </div>
+          <div class="queue">${draftRows.map(vehicleDraftCard).join('')}</div>`;
+        wireVehicleActions(drafts, load);
+      }
     } catch (err) {
       queue.innerHTML = errorPanel(err);
     }
@@ -582,6 +606,46 @@ function vehicleCard(item) {
         <button class="btn btn--success btn--sm" data-approve="${esc(item.id)}">
           ${icon('check', 14)} Approve vehicle
         </button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function vehicleDraftCard(item) {
+  const docs = item.documents || {};
+  const missing = item.missing || [];
+  return `<article class="kyc-card">
+    <div class="kyc-card__head">
+      <span class="avatar avatar--lg">${esc(initials(item.owner?.name || item.owner?.email))}</span>
+      <div class="kyc-card__who">
+        <h3>${esc(item.vehicle_model || 'Vehicle')} <span class="text-faint">· ${esc(item.vehicle_number || '')}</span></h3>
+        <p>${esc(item.owner?.name || 'Unknown owner')} · ${esc(item.owner?.email || '')}${item.owner?.phone ? ` · ${esc(item.owner.phone)}` : ''}</p>
+        <div class="flex gap-8 wrap mt-8">
+          <span class="badge badge--warn">${icon('clock', 12)} Waiting on documents</span>
+          <span class="badge badge--ghost">${esc(item.vehicle_type || 'vehicle')}</span>
+        </div>
+      </div>
+    </div>
+    <div class="kyc-card__meta">
+      <div class="meta">Still needed<b>${esc(missing.join(', ') || '—')}</b></div>
+      <div class="meta">Status<b>${esc(item.verification_status || 'unverified')}</b></div>
+      <div class="meta">Last update<b>${esc(fmtDateTime(item.updated_at))}</b></div>
+      <div class="meta">Owner id<b class="mono">${esc(item.owner?.id || '—')}</b></div>
+    </div>
+    <div class="kyc-card__foot">
+      <div class="doc-chips">
+        ${docs.dl
+          ? `<button class="doc-chip" data-doc="${esc(docs.dl)}" data-doc-label="Driving licence · ${esc(item.vehicle_number || '')}">${icon('file', 14)} Licence</button>`
+          : '<span class="badge badge--ghost">No licence yet</span>'}
+        ${docs.insurance
+          ? `<button class="doc-chip" data-doc="${esc(docs.insurance)}" data-doc-label="Insurance · ${esc(item.vehicle_number || '')}">${icon('file', 14)} Insurance</button>`
+          : '<span class="badge badge--ghost">No insurance yet</span>'}
+        ${docs.rc
+          ? `<button class="doc-chip" data-doc="${esc(docs.rc)}" data-doc-label="Registration certificate · ${esc(item.vehicle_number || '')}">${icon('file', 14)} RC</button>`
+          : ''}
+      </div>
+      <div class="kyc-card__actions">
+        <span class="badge badge--ghost">Read-only while incomplete</span>
       </div>
     </div>
   </article>`;

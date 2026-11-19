@@ -179,6 +179,7 @@ export const Api = {
     post(`/api/kyc/admin/identity/${uid}/review`, payload),
 
   vehicleQueue: () => get('/api/admin/vehicles/pending'),
+  vehicleProgress: () => get('/api/admin/vehicles/progress'),
   reviewVehicle: (vid, payload) => post(`/api/admin/vehicles/${vid}/verify`, payload),
 
   rcQueue: () => get('/api/kyc/admin/rc/queue'),
