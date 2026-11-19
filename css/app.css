@@ -280,6 +280,8 @@ code { font-family: var(--mono); font-size: .86em; background: var(--brand-soft)
 .card__title svg { width: 16px; height: 16px; color: var(--brand); }
 .card__sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
 .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
 .stat {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
