@@ -522,7 +522,7 @@ async function renderVehicles(root) {
         });
       } else {
         queue.innerHTML = rows.map(vehicleCard).join('');
-        wireVehicleActions(queue, load);
+        wireVehicleActions(queue, load, rows);
       }
 
       const readyIds = new Set(rows.map((row) => row.id));
@@ -532,11 +532,11 @@ async function renderVehicles(root) {
           <div class="section-head">
             <div>
               <h2>In progress</h2>
-              <p>Papers uploaded, packet not complete. Nothing to approve yet — the captain is still adding documents.</p>
+              <p>Papers uploaded, packet not complete. Open a card to correct the details or add a paper the captain sent you — a completed packet moves into the review queue above.</p>
             </div>
           </div>
           <div class="queue">${draftRows.map(vehicleDraftCard).join('')}</div>`;
-        wireVehicleActions(drafts, load);
+        wireVehicleActions(drafts, load, draftRows);
       }
     } catch (err) {
       queue.innerHTML = errorPanel(err);
@@ -645,16 +645,111 @@ function vehicleDraftCard(item) {
           : ''}
       </div>
       <div class="kyc-card__actions">
-        <span class="badge badge--ghost">Read-only while incomplete</span>
+        <button class="btn btn--primary btn--sm" data-edit-vehicle="${esc(item.id)}">
+          ${icon('edit', 14)} Edit / add papers
+        </button>
       </div>
     </div>
   </article>`;
 }
 
-function wireVehicleActions(scope, reload) {
+function editVehicleModal(item, reload) {
+  const docs = item.documents || {};
+  const types = ['2-wheeler', '4-wheeler', 'auto', 'bus'];
+  const { el, close } = openModal({
+    title: `Edit ${item.vehicle_model || 'vehicle'} · ${item.vehicle_number || ''}`,
+    subtitle: 'Changes are recorded against your staff account. Editing an identity field or replacing a paper re-opens review.',
+    lg: true,
+    body: `
+      <div class="grid-2">
+        <div class="field"><label for="evNumber">Registration number</label>
+          <input class="input" id="evNumber" value="${esc(item.vehicle_number || '')}" /></div>
+        <div class="field"><label for="evModel">Model</label>
+          <input class="input" id="evModel" value="${esc(item.vehicle_model || '')}" /></div>
+      </div>
+      <div class="grid-2 mt-12">
+        <div class="field"><label for="evType">Vehicle type</label>
+          <select class="select" id="evType">
+            ${types.map((t) => `<option value="${t}" ${item.vehicle_type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+          </select></div>
+        <div class="field"><label for="evSeats">Seats</label>
+          <input class="input" id="evSeats" type="number" min="1" max="24" value="${item.seat_count ?? ''}" /></div>
+      </div>
+      <div class="grid-2 mt-12">
+        <div class="field"><label for="evDl">Driving licence no.</label>
+          <input class="input" id="evDl" value="${esc(item.dl_number || '')}" placeholder="Not recorded" /></div>
+        <div class="field"><label for="evInsurance">Insurance policy no.</label>
+          <input class="input" id="evInsurance" value="${esc(item.insurance_number || '')}" placeholder="Not recorded" /></div>
+      </div>
+      <div class="grid-2 mt-12">
+        <div class="field"><label for="evDlDoc">Licence photo</label>
+          <input class="input" id="evDlDoc" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf" />
+          <p class="field__hint">${docs.dl ? 'On file — choosing a file replaces it.' : 'Missing.'}</p></div>
+        <div class="field"><label for="evInsDoc">Insurance photo</label>
+          <input class="input" id="evInsDoc" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf" />
+          <p class="field__hint">${docs.insurance ? 'On file — choosing a file replaces it.' : 'Missing.'}</p></div>
+      </div>
+      <p class="field__hint mt-12">Only files the captain has actually supplied. Uploading here records your staff account as the sender.</p>`,
+    foot: `<button class="btn btn--ghost" data-cancel>Cancel</button>
+           <button class="btn btn--primary" data-save>Save changes</button>`,
+  });
+
+  const field = (id) => el.querySelector(`#${id}`).value.trim();
+  const file = (id) => el.querySelector(`#${id}`).files?.[0] || null;
+  el.querySelector('[data-cancel]').addEventListener('click', close);
+
+  el.querySelector('[data-save]').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Saving…';
+    try {
+      const payload = {
+        vehicle_number: field('evNumber'),
+        vehicle_model: field('evModel'),
+        vehicle_type: el.querySelector('#evType').value,
+        seat_count: Number(field('evSeats')) || undefined,
+        dl_number: field('evDl'),
+        insurance_number: field('evInsurance'),
+      };
+      const updated = await Api.updateVehicle(item.id, payload);
+      let submitted = updated.submitted;
+      let last = updated;
+      for (const [kind, id] of [['dl', 'evDlDoc'], ['insurance', 'evInsDoc']]) {
+        const chosen = file(id);
+        if (!chosen) continue;
+        last = await Api.uploadVehicleDoc(item.id, kind, chosen);
+        submitted = submitted || last.submitted;
+      }
+      close();
+      const missing = last.missing || [];
+      if (submitted) {
+        toast('Packet complete — moved to the review queue above.', 'success', 6000);
+      } else if (missing.length) {
+        toast(`Saved. Still needed: ${missing.join(', ')}.`, 'success', 6000);
+      } else {
+        toast('Saved.', 'success');
+      }
+      await reload();
+      refreshCounts();
+    } catch (err) {
+      button.disabled = false;
+      button.textContent = 'Save changes';
+      toast(err.message || 'The changes could not be saved.', 'error', 6000);
+    }
+  });
+}
+
+function wireVehicleActions(scope, reload, rows = []) {
   scope.querySelectorAll('[data-doc]').forEach((button) => {
     button.addEventListener('click', () =>
       viewDocument(button.dataset.doc, button.dataset.docLabel));
+  });
+  scope.querySelectorAll('[data-edit-vehicle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const item = rows.find((row) => String(row.id) === String(button.dataset.editVehicle));
+      if (!item) { toast('Reload the list and try again.', 'error'); return; }
+      editVehicleModal(item, reload);
+    });
   });
   scope.querySelectorAll('[data-approve]').forEach((button) => {
     const row = button.closest('.kyc-card');

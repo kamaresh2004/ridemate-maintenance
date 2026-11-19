@@ -181,6 +181,13 @@ export const Api = {
   vehicleQueue: () => get('/api/admin/vehicles/pending'),
   vehicleProgress: () => get('/api/admin/vehicles/progress'),
   reviewVehicle: (vid, payload) => post(`/api/admin/vehicles/${vid}/verify`, payload),
+  updateVehicle: (vid, payload) => patch(`/api/admin/vehicles/${vid}`, payload),
+  uploadVehicleDoc(vid, kind, file) {
+    const form = new FormData();
+    form.append('doc', kind);
+    form.append('file', file);
+    return request('POST', `/api/admin/vehicles/${vid}/document`, { form });
+  },
 
   rcQueue: () => get('/api/kyc/admin/rc/queue'),
   reviewRc: (vid, payload) =>
