@@ -727,7 +727,9 @@ function editVehicleModal(item, reload) {
       } else if (missing.length) {
         toast(`Saved. Still needed: ${missing.join(', ')}.`, 'success', 6000);
       } else {
-        toast('Saved.', 'success');
+        // Complete but not forwarded (e.g. the automated check needs the
+        // captain's consent). Say so instead of a cheerful no-op.
+        toast('Saved. The packet is complete but was not forwarded — the captain still has to submit it.', 'error', 7000);
       }
       await reload();
       refreshCounts();
