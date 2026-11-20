@@ -532,7 +532,7 @@ async function renderVehicles(root) {
           <div class="section-head">
             <div>
               <h2>In progress</h2>
-              <p>Papers uploaded, packet not complete. Open a card to correct the details or add a paper the captain sent you — a completed packet moves into the review queue above.</p>
+              <p>Papers uploaded, packet not complete. Approve a complete packet or reject it with a reason; a packet that is still missing papers cannot be approved.</p>
             </div>
           </div>
           <div class="queue">${draftRows.map(vehicleDraftCard).join('')}</div>`;
@@ -658,8 +658,11 @@ function vehicleDraftCard(item) {
           : ''}
       </div>
       <div class="kyc-card__actions">
-        <button class="btn btn--primary btn--sm" data-edit-vehicle="${esc(item.id)}">
-          ${icon('edit', 14)} Edit / add papers
+        <button class="btn btn--primary btn--sm" data-approve="${esc(item.id)}">
+          ${icon('check', 14)} Approve vehicle
+        </button>
+        <button class="btn btn--ghost btn--sm" data-reject="${esc(item.id)}">
+          ${icon('close', 14)} Reject
         </button>
       </div>
     </div>
